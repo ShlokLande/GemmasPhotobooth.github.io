@@ -1,0 +1,399 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Gemma's Photobooth</title>
+  <link href="https://fonts.googleapis.com/css2?family=Dancing+Script:wght@400;700&display=swap" rel="stylesheet">
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      text-align: center;
+      /* Pink radial gradient background */
+      background: radial-gradient(circle at center, #ffb6c1, #ff69b4); /* Light Pink to Hot Pink gradient */
+      /* height: 100vh; Removed to allow scrolling */
+      min-height: 100vh; /* Ensures it takes full height when content is less */
+      margin: 0; /* Remove default body margin */
+      padding: 20px; /* Keep original padding for content */
+      display: flex; /* Use flexbox for centering content */
+      flex-direction: column;
+      align-items: center;
+      /* justify-content: center; Removed to allow content to start from top */
+      overflow-y: auto; /* Enable vertical scrolling if content overflows */
+    }
+    h1 {
+      font-family: 'Dancing Script', cursive; /* Applied cursive font */
+      font-size: 2.5rem; /* Adjust font size as needed */
+      color: #333; /* Darker text for contrast */
+      margin-bottom: 20px;
+    }
+    #video {
+      max-width: 100%;
+      height: auto; /* Ensure video scales correctly */
+      border: 2px solid #333;
+      margin-bottom: 10px;
+      border-radius: 8px; /* Added rounded corners */
+      transform: scaleX(-1); /* Mirror the video horizontally */
+      transition: filter 0.3s ease; /* Smooth transition for filters */
+    }
+    /* CSS Filter Classes for video element - ADDED */
+    .filter-none { filter: none; }
+    .filter-grayscale { filter: grayscale(100%); }
+    .filter-brightness { filter: brightness(150%); }
+    .filter-contrast { filter: contrast(200%); }
+    .filter-pink-tint { filter: hue-rotate(330deg) saturate(150%) brightness(110%); } /* New Pink Tint filter */
+
+    #canvas { /* Canvas does not need mirroring as it draws the image */
+      max-width: 100%;
+      height: auto;
+      border: 2px solid #333;
+      margin-bottom: 10px;
+      border-radius: 8px;
+    }
+    #photo-previews {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 10px;
+      margin-top: 20px;
+    }
+    .preview {
+      width: 150px;
+      height: 120px;
+      object-fit: cover;
+      border: 2px solid #333;
+      background: #ddd;
+      border-radius: 8px; /* Added rounded corners */
+    }
+    /* Styles for the circular capture button */
+    #capture-button-container {
+      margin: 20px 0;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+    }
+
+    #capture {
+      width: 70px;
+      height: 70px;
+      background-color: white;
+      border: 4px solid #fff; /* White outer border */
+      border-radius: 50%; /* Makes it circular */
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      cursor: pointer;
+      box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2); /* Subtle shadow */
+      transition: all 0.2s ease-in-out;
+      -webkit-tap-highlight-color: transparent; /* Remove tap highlight on mobile */
+    }
+
+    #capture:active {
+      transform: scale(0.95); /* Slight shrink on press */
+      box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+    }
+
+    #capture::before {
+      content: '';
+      display: block;
+      width: 60px; /* Inner circle size */
+      height: 60px;
+      background-color: #ff69b4; /* Hot pink inner circle */
+      border-radius: 50%;
+      border: 2px solid #fff; /* White border for inner circle */
+    }
+
+    /* Styling for general buttons and selects */
+    .control-button, #countdown-select, #filter-select { /* #filter-select ADDED */
+      padding: 10px 15px;
+      margin: 10px 5px;
+      font-size: 1rem;
+      border: none;
+      border-radius: 25px; /* Rounded buttons */
+      background-color: rgba(255, 255, 255, 0.8); /* Slightly transparent white */
+      color: #333;
+      cursor: pointer;
+      text-decoration: none; /* Remove underline for links */
+      display: inline-block; /* For proper padding and margin */
+      box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+      transition: background-color 0.2s ease-in-out;
+      -webkit-appearance: none; /* Remove default dropdown arrow */
+      -moz-appearance: none;
+      appearance: none;
+      background-image: url('data:image/svg+xml;charset=US-ASCII,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20width%3D%22292.4%22%20height%3D%22292.4%22%3E%3Cpath%20fill%3D%22%23333%22%20d%3D%22M287%2C197.4L146.2%2C56.6L5.4%2C197.4h281.6z%22%2F%3E%3C%2Fsvg%3E'); /* Custom arrow */
+      background-repeat: no-repeat;
+      background-position: right 10px top 50%;
+      background-size: 12px auto;
+      padding-right: 30px; /* Make space for the arrow */
+    }
+
+    .control-button:hover, #countdown-select:hover, #filter-select:hover { /* #filter-select ADDED */
+      background-color: rgba(255, 255, 255, 1);
+    }
+
+    /* Countdown display styling */
+    .countdown-display {
+      position: fixed;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      font-size: 5rem;
+      background-color: rgba(0,0,0,0.7);
+      color: white;
+      padding: 20px;
+      border-radius: 10px;
+      z-index: 9999;
+      animation: pulse 1s infinite alternate; /* Added pulse animation */
+    }
+
+    @keyframes pulse {
+      from { opacity: 0; }
+      to { opacity: 1; }
+    }
+
+    /* Photo counter styling */
+    #photo-counter {
+      color: #333;
+      font-size: 1.2rem;
+      font-weight: bold;
+      margin-top: 10px;
+      margin-bottom: 10px;
+    }
+
+    /* Responsive adjustments */
+    @media (max-width: 768px) {
+      body {
+        padding: 10px;
+      }
+      h1 {
+        font-size: 1.8rem;
+      }
+      #capture {
+        width: 60px;
+        height: 60px;
+      }
+      #capture::before {
+        width: 50px;
+        height: 50px;
+      }
+      .countdown-display {
+        font-size: 3rem;
+        padding: 15px;
+      }
+      #countdown-select, .control-button, #filter-select { /* #filter-select ADDED */
+        margin-top: 15px;
+      }
+    }
+  </style>
+</head>
+<body>
+  <h1>💖 Gemma's Photobooth 💖</h1> <video id="video" autoplay playsinline class="filter-none"></video> <br>
+
+  <div id="capture-button-container">
+    <button id="capture"></button>
+  </div>
+  <br>
+
+  <label for="countdown-select" style="color: #333; font-weight: bold;">Countdown:</label>
+  <select id="countdown-select" class="control-button">
+    <option value="3">3 seconds</option>
+    <option value="5" selected>5 seconds</option>
+    <option value="7">7 seconds</option>
+  </select>
+  <br>
+
+  <label for="filter-select" style="color: #333; font-weight: bold;">Filter:</label>
+  <select id="filter-select" class="control-button">
+    <option value="none">None</option>
+    <option value="grayscale">Grayscale</option>
+    <option value="brightness">Brightness</option>
+    <option value="contrast">Contrast</option>
+    <option value="pink-tint">Pink Tint</option>
+  </select>
+  <br>
+
+  <div id="photo-counter">Photo 0 of 4</div>
+
+  <div id="photo-previews">
+    </div>
+
+  <canvas id="canvas" style="display:none;"></canvas>
+  <br>
+
+  <a id="download" download="photobooth_strip.png" href="#" class="control-button" style="display:none;">Download Photo Strip</a>
+  <button id="reset-button" class="control-button" style="display:none;">Reset Photobooth</button>
+
+  <script>
+    const video = document.getElementById('video');
+    const captureButton = document.getElementById('capture');
+    const canvas = document.getElementById('canvas');
+    const downloadLink = document.getElementById('download');
+    const photoPreviews = document.getElementById('photo-previews');
+    const countdownSelect = document.getElementById('countdown-select');
+    const filterSelect = document.getElementById('filter-select'); // New: Get filter select element
+    const photoCounter = document.getElementById('photo-counter');
+    const resetButton = document.getElementById('reset-button');
+    let capturedPhotos = [];
+
+    // Request camera access
+    navigator.mediaDevices.getUserMedia({ video: true })
+      .then(stream => {
+        video.srcObject = stream;
+      })
+      .catch(err => {
+        console.error("Error accessing the camera: " + err);
+        // Provide a user-friendly message if camera access is denied
+        const cameraErrorDiv = document.createElement('div');
+        cameraErrorDiv.textContent = "Please allow camera access to use the photobooth.";
+        cameraErrorDiv.style.color = 'red';
+        cameraErrorDiv.style.marginTop = '20px';
+        document.body.insertBefore(cameraErrorDiv, video.nextSibling);
+      });
+
+    // Update the photo counter display
+    function updatePhotoCounter() {
+      photoCounter.textContent = `Photo ${capturedPhotos.length} of 4`;
+    }
+
+    // Apply filter to video element on selection change - ADDED
+    filterSelect.addEventListener('change', () => {
+      const selectedFilter = filterSelect.value;
+      // Remove all existing filter classes
+      video.className = ''; // Clear all existing classes
+      // Add the selected filter class
+      video.classList.add(`filter-${selectedFilter}`);
+    });
+
+
+    // Capture button click event
+    captureButton.addEventListener('click', () => {
+      // Only allow capturing if less than 4 photos have been taken
+      if (capturedPhotos.length < 4) {
+        const selectedCountdown = parseInt(countdownSelect.value);
+        startCountdown(selectedCountdown);
+      }
+    });
+
+    // Reset button click event
+    resetButton.addEventListener('click', () => {
+      capturedPhotos = []; // Clear all captured photos
+      photoPreviews.innerHTML = ''; // Clear photo previews from display
+      downloadLink.style.display = 'none'; // Hide download link
+      resetButton.style.display = 'none'; // Hide reset button
+      captureButton.disabled = false; // Re-enable capture button
+      captureButton.style.cursor = 'pointer'; // Reset cursor
+      captureButton.style.opacity = '1'; // Reset opacity
+      filterSelect.value = 'none'; // Reset filter to none - ADDED
+      video.className = ''; // Remove all filter classes from video - ADDED
+      video.classList.add('filter-none'); // Apply default none filter - ADDED
+      updatePhotoCounter(); // Reset photo counter
+    });
+
+    // Function to start the countdown
+    function startCountdown(seconds) {
+      let countdownNumber = seconds;
+
+      const countdownDisplay = document.createElement('div');
+      countdownDisplay.className = 'countdown-display';
+      countdownDisplay.innerText = countdownNumber;
+      document.body.appendChild(countdownDisplay);
+
+      const interval = setInterval(() => {
+        countdownNumber--;
+        if (countdownNumber > 0) {
+          countdownDisplay.innerText = countdownNumber;
+        } else {
+          clearInterval(interval);
+          document.body.removeChild(countdownDisplay);
+          captureSinglePhoto(); // Capture photo after countdown
+          updatePhotoCounter(); // Update counter after capturing
+
+          // Check if all 4 photos are captured after the current one
+          if (capturedPhotos.length === 4) {
+            createPhotoboothStrip(); // Create the strip if all photos are done
+            captureButton.disabled = true; // Disable the capture button after 4 photos
+            captureButton.style.cursor = 'not-allowed'; // Change cursor to indicate disabled state
+            captureButton.style.opacity = '0.6'; // Dim the button
+            resetButton.style.display = 'inline-block'; // Show reset button
+          }
+        }
+      }, 1000);
+    }
+
+    // Function to capture a single photo from the video stream
+    function captureSinglePhoto() {
+      const tempCanvas = document.createElement('canvas');
+      const tempContext = tempCanvas.getContext('2d');
+      tempCanvas.width = video.videoWidth;
+      tempCanvas.height = video.videoHeight;
+
+      // Apply the current filter from the video element to the canvas context - ADDED
+      // IMPORTANT: getComputedStyle is needed to get the actual applied filter value
+      tempContext.filter = window.getComputedStyle(video).filter;
+
+      // Draw image with mirroring on the canvas
+      tempContext.translate(tempCanvas.width, 0);
+      tempContext.scale(-1, 1);
+      tempContext.drawImage(video, 0, 0, tempCanvas.width, tempCanvas.height);
+      // Reset canvas transformation and filter for subsequent draws if any - ADDED
+      tempContext.setTransform(1, 0, 0, 1, 0, 0);
+      tempContext.filter = 'none'; // Important: reset filter on context after drawing
+
+      capturedPhotos.push(tempCanvas);
+
+      // Create and append preview image
+      const img = document.createElement('img');
+      img.src = tempCanvas.toDataURL('image/png');
+      img.className = 'preview';
+      photoPreviews.appendChild(img);
+    }
+
+    // Function to create the final photobooth strip
+    function createPhotoboothStrip() {
+      canvas.width = 500;
+      canvas.height = 1550;
+      const ctx = canvas.getContext('2d');
+
+      // Fill with white background
+      ctx.fillStyle = "white";
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+      const slotWidth = 500;
+      const slotHeight = 375;
+      const initialYOffset = 0;
+      const slotSpacing = 388;
+
+      for (let i = 0; i < capturedPhotos.length; i++) {
+        const photo = capturedPhotos[i];
+        const yPosition = initialYOffset + (i * slotSpacing);
+
+        const aspectRatio = photo.width / photo.height;
+        const targetAspectRatio = slotWidth / slotHeight;
+
+        let sx, sy, sWidth, sHeight;
+
+        if (aspectRatio > targetAspectRatio) {
+          sHeight = photo.height;
+          sWidth = sHeight * targetAspectRatio;
+          sx = (photo.width - sWidth) / 2;
+          sy = 0;
+        } else {
+          sWidth = photo.width;
+          sHeight = sWidth / targetAspectRatio;
+          sx = 0;
+          sy = (photo.height - sHeight) / 2;
+        }
+
+        ctx.drawImage(photo, sx, sy, sWidth, sHeight, 0, yPosition, slotWidth, slotHeight);
+      }
+
+      const dataURL = canvas.toDataURL('image/png');
+      downloadLink.href = dataURL;
+      downloadLink.style.display = 'block';
+    }
+
+    // Initialize counter on load
+    updatePhotoCounter();
+  </script>
+</body>
+</html>
